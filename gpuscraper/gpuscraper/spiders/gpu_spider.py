@@ -1,6 +1,7 @@
 import time
 import re
 import scrapy
+from scrapy.exceptions import CloseSpider
 from selenium.webdriver.support.wait import WebDriverWait
 
 from ..items import GpuscraperItem
@@ -39,16 +40,15 @@ def set_workstation(select_value):
     select = Select(element)
     select.select_by_value(select_value.capitalize())
 
-def get_all_PCI_interface_values():
+def get_all_PCIe_interface_values():
     element = driver.find_element(By.ID, "interface")
     option_values = element.find_elements(By.TAG_NAME, "option")
     PCI_values = []
 
     for option in option_values:
-        if option.get_attribute("value").startswith("PCI"):
+        if option.get_attribute("value").startswith("PCIe"):
             PCI_values.append(option.get_attribute("value"))
 
-    PCI_values.remove("PCI-X")
     return PCI_values
 
 def get_all_release_date_values():
@@ -84,6 +84,7 @@ def set_bus_interface(select_value):
     element = driver.find_element(By.ID, "interface")
     select = Select(element)
     select.select_by_value(select_value)
+
 
 def reset_bus_interface():
     element = driver.find_element(By.ID, "interface")
@@ -121,60 +122,152 @@ def extract_a_contents(input_string):
     else:
         return None
 
+def have_common_elements(array1, array2):
+    for element in array1:
+        if element in array2:
+            return True
+    return False
+
 class GpuSpider(scrapy.Spider):
     name = "gpus"
     manufacturers = ["3dfx", "AMD", "ATI", "Intel", "Matrox", "NVIDIA", "Sony", "XGI"]
-    start_urls = ["https://www.techpowerup.com/gpu-specs/?mobile=No&workstation=No&sort=name"]
+    #Bus interface values have an empty space encoding added as they are going to be passed as a value to change the url
+    PCIe_values = ["PCIe%202.0%20x16", "PCIe%203.0%20x16", "PCIe%203.0%20x8", "PCIe%204.0%20x4", "PCIe%204.0%20x8"]
+    contains_PCIe_values = True
+    manufacturer_index = 0
+    PCIe_value_index = 0
+    #https://www.techpowerup.com/gpu-specs/?mfgr=AMD&mobile=No&workstation=No&sort=name
+    #start_urls = ["https://www.techpowerup.com/gpu-specs/?mobile=No&workstation=No&sort=name"]
+    #start_urls = ["https://www.techpowerup.com/gpu-specs/?mfgr=AMD&mobile=No&workstation=No&sort=name"]
+    #start_urls = ["https://www.techpowerup.com/gpu-specs/?mfgr=AMD&mobile=No&workstation=No&interface=PCIe%202.0%20x16&sort=name"]
 
+    def start_requests(self):
+        while self.manufacturer_index < len(self.manufacturers) - 1:
+            for pci in self.PCIe_values:
+                yield scrapy.Request(
+                    f"https://www.techpowerup.com/gpu-specs/?mfgr={self.manufacturers[self.manufacturer_index]}&mobile=No&workstation=No&interface={pci}&sort=name",
+                    callback=self.parse)
+
+            self.manufacturer_index += 1
     def parse(self, response):
         items = GpuscraperItem()
 
         driver.get(response.url)
-        #PCI_values = get_all_PCI_interface_values()
+        WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.XPATH, "//select[@id='interface']")))
+        webpage_PCIe_values = get_all_PCIe_interface_values()
+        self.contains_PCIe_values = have_common_elements(webpage_PCIe_values, self.PCIe_values)
 
+        if self.contains_PCIe_values == False:
+            self.manufacturer_index += 1
+            self.PCIe_value_index = 0
+            yield scrapy.Request(
+                f"https://www.techpowerup.com/gpu-specs/?mfgr={self.manufacturers[self.manufacturer_index]}&mobile=No&workstation=No&interface={self.PCIe_values[self.PCIe_value_index]}&sort=name",
+                callback=self.parse)
+            time.sleep(6)
 
-        for man in self.manufacturers:
-            #PCI_values_index = 0
+        else:
+            WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.XPATH, "//table[@class='processors']")))
             time.sleep(5)
-            select_manufacturer(man)
-            time.sleep(2)
-            release_dates = get_all_release_date_values()
-            time.sleep(2)
-            for date in release_dates:
-                #set_bus_interface(pci)
-                time.sleep(3)
-                set_release_date(date)
-                WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.XPATH, "//table[@class='processors']")))
-                driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            gpus_tbody = response.xpath("//table[@class='processors']/tr").getall()
+            time.sleep(5)
+            cleaned_gpus_tbody = [remove_tr_tags(gpu_values) for gpu_values in gpus_tbody]
 
-                gpus_tbody = response.xpath("//table[@class='processors']/tr").getall()
-                cleaned_gpus_tbody = [remove_tr_tags(gpu_values) for gpu_values in gpus_tbody]
+            for gpus in cleaned_gpus_tbody:
+                split_gpu_values = split_td_tags(gpus)
 
-                for gpus in cleaned_gpus_tbody:
-                    split_gpu_values = split_td_tags(gpus)
-                    items["brand"] = man
-                    items["name"] = extract_a_contents(split_gpu_values[0])
-                    items["clock_speed"] = split_gpu_values[5]
-                    #memory_values = split_memory_string(split_gpu_values[4])
-                    items["memory"] = split_gpu_values[4]
-                    # items["memory_size"] = memory_values[0]
-                    # items["memory_type"] = memory_values[1]
-                    items["memory_speed"] = split_gpu_values[6]
-                    #items["bus_width"] = memory_values[2]
+                items["brand"] = self.manufacturers[self.manufacturer_index]
+                items["name"] = extract_a_contents(split_gpu_values[0])
+                items["clock_speed"] = split_gpu_values[5]
+                items["memory"] = split_gpu_values[4]
+                items["memory_speed"] = split_gpu_values[6]
 
-                    yield items
+                yield items
 
-                time.sleep(2)
-                reset_release_date_form()
-                #reset_bus_interface()
-                time.sleep(2)
-                #PCI_values_index += 1
+        # for value in PCIe_values:
+        #     time.sleep(2)
+        #     set_bus_interface(value)
+        #     #driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        #     WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.XPATH, "//table[@class='processors']")))
+        #     time.sleep(5)
+        #     gpus_tbody = response.xpath("//table[@class='processors']/tr").getall()
+        #     time.sleep(5)
+        #     cleaned_gpus_tbody = [remove_tr_tags(gpu_values) for gpu_values in gpus_tbody]
 
-            deselect_manufacturer()
-            time.sleep(2)
-            reset_release_date_form()
-            #reset_bus_interface()
-            time.sleep(2)
+            # for gpus in cleaned_gpus_tbody:
+            #     split_gpu_values = split_td_tags(gpus)
+            #     items["brand"] = "AMD"
+            #     items["name"] = extract_a_contents(split_gpu_values[0])
+            #     items["clock_speed"] = split_gpu_values[5]
+            #     #memory_values = split_memory_string(split_gpu_values[4])
+            #     items["memory"] = split_gpu_values[4]
+            #     # items["memory_size"] = memory_values[0]
+            #     # items["memory_type"] = memory_values[1]
+            #     items["memory_speed"] = split_gpu_values[6]
+            #     #items["bus_width"] = memory_values[2]
+
+            # for gpus in cleaned_gpus_tbody:
+            #     split_gpu_values = split_td_tags(gpus)
+            #
+            #     items["brand"] = "AMD"
+            #     items["name"] = extract_a_contents(split_gpu_values[0])
+            #     items["clock_speed"] = split_gpu_values[5]
+            #     items["memory"] = split_gpu_values[4]
+            #     items["memory_speed"] = split_gpu_values[6]
+            #
+            #     yield items
+            #
+            # reset_bus_interface()
+
+
+    # def parse(self, response):
+    #     items = GpuscraperItem()
+    #
+    #     driver.get(response.url)
+    #     #PCI_values = get_all_PCI_interface_values()
+    #
+    #
+    #     for man in self.manufacturers:
+    #         #PCI_values_index = 0
+    #         time.sleep(5)
+    #         select_manufacturer(man)
+    #         time.sleep(2)
+    #         release_dates = get_all_release_date_values()
+    #         time.sleep(2)
+    #         for date in release_dates:
+    #             #set_bus_interface(pci)
+    #             time.sleep(3)
+    #             set_release_date(date)
+    #             WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.XPATH, "//table[@class='processors']")))
+    #             driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+    #
+    #             gpus_tbody = response.xpath("//table[@class='processors']/tr").getall()
+    #             cleaned_gpus_tbody = [remove_tr_tags(gpu_values) for gpu_values in gpus_tbody]
+    #
+    #             for gpus in cleaned_gpus_tbody:
+    #                 split_gpu_values = split_td_tags(gpus)
+    #                 items["brand"] = man
+    #                 items["name"] = extract_a_contents(split_gpu_values[0])
+    #                 items["clock_speed"] = split_gpu_values[5]
+    #                 #memory_values = split_memory_string(split_gpu_values[4])
+    #                 items["memory"] = split_gpu_values[4]
+    #                 # items["memory_size"] = memory_values[0]
+    #                 # items["memory_type"] = memory_values[1]
+    #                 items["memory_speed"] = split_gpu_values[6]
+    #                 #items["bus_width"] = memory_values[2]
+    #
+    #                 yield items
+    #
+    #             time.sleep(2)
+    #             reset_release_date_form()
+    #             #reset_bus_interface()
+    #             time.sleep(2)
+    #             #PCI_values_index += 1
+    #
+    #         deselect_manufacturer()
+    #         time.sleep(2)
+    #         reset_release_date_form()
+    #         #reset_bus_interface()
+    #         time.sleep(2)
 
     def closed(self, reason):
         # Close the WebDriver when the spider is closed
