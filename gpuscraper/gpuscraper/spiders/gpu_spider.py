@@ -40,16 +40,25 @@ def set_workstation(select_value):
     select = Select(element)
     select.select_by_value(select_value.capitalize())
 
+def get_bus_interface_option_values():
+    element = driver.find_element(By.ID, "interface")
+    select = Select(element)
+    option_elements = select.options
+    option_values = [option.get_attribute("value") for option in option_elements]
+
+
+    return option_values
 def get_all_PCIe_interface_values():
     element = driver.find_element(By.ID, "interface")
-    option_values = element.find_elements(By.TAG_NAME, "option")
-    PCI_values = []
+    select = Select(element)
+    option_elements = select.options
+    option_values = []
 
-    for option in option_values:
+    for option in option_elements:
         if option.get_attribute("value").startswith("PCIe"):
-            PCI_values.append(option.get_attribute("value"))
+            option_values.append(option.get_attribute("value"))
 
-    return PCI_values
+    return option_values
 
 def get_all_release_date_values():
     element = driver.find_element(By.ID, "released")
@@ -71,14 +80,6 @@ def reset_release_date_form():
     element = driver.find_element(By.ID, "released")
     select = Select(element)
     select.select_by_index(0)
-
-def get_bus_interface_option_values():
-    element = driver.find_element(By.ID, "interface")
-    select = Select(element)
-    option_elements = select.options
-    option_values = [option.get_attribute("value") for option in option_elements]
-
-    return option_values
 
 def set_bus_interface(select_value):
     element = driver.find_element(By.ID, "interface")
@@ -142,24 +143,28 @@ class GpuSpider(scrapy.Spider):
     #start_urls = ["https://www.techpowerup.com/gpu-specs/?mfgr=AMD&mobile=No&workstation=No&interface=PCIe%202.0%20x16&sort=name"]
 
     def start_requests(self):
-        while self.manufacturer_index < len(self.manufacturers) - 1:
-            for pci in self.PCIe_values:
-                yield scrapy.Request(
-                    f"https://www.techpowerup.com/gpu-specs/?mfgr={self.manufacturers[self.manufacturer_index]}&mobile=No&workstation=No&interface={pci}&sort=name",
-                    callback=self.parse)
-
-            self.manufacturer_index += 1
+        yield scrapy.Request("https://www.techpowerup.com/gpu-specs/?mobile=No&workstation=No&sort=name", callback=self.check)
+    # def start_requests(self):
+    #     while self.manufacturer_index < len(self.manufacturers) - 1:
+    #         for pci in self.PCIe_values:
+    #             yield scrapy.Request(
+    #                 f"https://www.techpowerup.com/gpu-specs/?mfgr={self.manufacturers[self.manufacturer_index]}&mobile=No&workstation=No&interface={pci}&sort=name",
+    #                 callback=self.parse)
+    #
+    #         self.manufacturer_index += 1
     def parse(self, response):
         items = GpuscraperItem()
 
         driver.get(response.url)
         WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.XPATH, "//select[@id='interface']")))
         webpage_PCIe_values = get_all_PCIe_interface_values()
-        self.contains_PCIe_values = have_common_elements(webpage_PCIe_values, self.PCIe_values)
+        # print(f"Webpage PCIe values {webpage_PCIe_values}")
+        # self.contains_PCIe_values = have_common_elements(webpage_PCIe_values, self.PCIe_values)
 
-        if self.contains_PCIe_values == False:
+        if len(response.xpath("//table[@class='processors']/tr").getall()) == 1:
             self.manufacturer_index += 1
             self.PCIe_value_index = 0
+            print(f"No bus values, {self.manufacturer_index}")
             yield scrapy.Request(
                 f"https://www.techpowerup.com/gpu-specs/?mfgr={self.manufacturers[self.manufacturer_index]}&mobile=No&workstation=No&interface={self.PCIe_values[self.PCIe_value_index]}&sort=name",
                 callback=self.parse)
@@ -268,6 +273,25 @@ class GpuSpider(scrapy.Spider):
     #         reset_release_date_form()
     #         #reset_bus_interface()
     #         time.sleep(2)
+
+    def check(self, response):
+        driver.get(response.url)
+        i = response.xpath("//table[@class='processors']/tr").getall()
+        c = [remove_tr_tags(gpu_values) for gpu_values in i]
+
+        print("URL before changing any options:", response.url)
+        #print(f"Before selecting manufacturer: {c}")
+
+        select_manufacturer("AMD")
+        time.sleep(3)
+        set_bus_interface("PCIe 2.0 x16")
+        time.sleep(3)
+
+        g = response.xpath("//table[@class='processors']/tr").getall()
+        f = [remove_tr_tags(gpu_values) for gpu_values in g]
+
+        print("URL after changing any options:", response.url)
+        #print(f"After selecting manufacturer: {f}")
 
     def closed(self, reason):
         # Close the WebDriver when the spider is closed
