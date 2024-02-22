@@ -143,44 +143,34 @@ class GpuSpider(scrapy.Spider):
     #start_urls = ["https://www.techpowerup.com/gpu-specs/?mfgr=AMD&mobile=No&workstation=No&interface=PCIe%202.0%20x16&sort=name"]
 
     def start_requests(self):
-        yield scrapy.Request("https://www.techpowerup.com/gpu-specs/?mobile=No&workstation=No&sort=name", callback=self.check)
-    # def start_requests(self):
-    #     while self.manufacturer_index < len(self.manufacturers) - 1:
-    #         for pci in self.PCIe_values:
-    #             yield scrapy.Request(
-    #                 f"https://www.techpowerup.com/gpu-specs/?mfgr={self.manufacturers[self.manufacturer_index]}&mobile=No&workstation=No&interface={pci}&sort=name",
-    #                 callback=self.parse)
-    #
-    #         self.manufacturer_index += 1
-    def parse(self, response):
-        items = GpuscraperItem()
+        for m in self.manufacturers:
+            for pci in self.PCIe_values:
+                request = scrapy.Request(
+                    f"https://www.techpowerup.com/gpu-specs/?mfgr={m}&mobile=No&workstation=No&interface={pci}&sort=name",
+                    callback=self.parse,
+                    cb_kwargs={"manufacturer": m}
+                )
 
+                yield request
+                time.sleep(10)
+
+    def parse(self, response, manufacturer):
+        items = GpuscraperItem()
         driver.get(response.url)
-        WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.XPATH, "//select[@id='interface']")))
-        webpage_PCIe_values = get_all_PCIe_interface_values()
-        # print(f"Webpage PCIe values {webpage_PCIe_values}")
-        # self.contains_PCIe_values = have_common_elements(webpage_PCIe_values, self.PCIe_values)
+
+        WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.XPATH, "//table[@class='processors']")))
 
         if len(response.xpath("//table[@class='processors']/tr").getall()) == 1:
-            self.manufacturer_index += 1
-            self.PCIe_value_index = 0
-            print(f"No bus values, {self.manufacturer_index}")
-            yield scrapy.Request(
-                f"https://www.techpowerup.com/gpu-specs/?mfgr={self.manufacturers[self.manufacturer_index]}&mobile=No&workstation=No&interface={self.PCIe_values[self.PCIe_value_index]}&sort=name",
-                callback=self.parse)
-            time.sleep(6)
+            pass
 
         else:
-            WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.XPATH, "//table[@class='processors']")))
-            time.sleep(5)
             gpus_tbody = response.xpath("//table[@class='processors']/tr").getall()
-            time.sleep(5)
             cleaned_gpus_tbody = [remove_tr_tags(gpu_values) for gpu_values in gpus_tbody]
 
             for gpus in cleaned_gpus_tbody:
                 split_gpu_values = split_td_tags(gpus)
 
-                items["brand"] = self.manufacturers[self.manufacturer_index]
+                items["brand"] = manufacturer
                 items["name"] = extract_a_contents(split_gpu_values[0])
                 items["clock_speed"] = split_gpu_values[5]
                 items["memory"] = split_gpu_values[4]
