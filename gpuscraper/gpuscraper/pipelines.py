@@ -59,3 +59,34 @@ class GpuscraperPipeline:
             item["memory_speed"]
         ))
         self.conn.commit()
+
+class GpuImgScraperPipeline:
+    def __init__(self):
+        self.create_connection()
+        self.is_img_urls_column_created()
+    def create_connection(self):
+        self.conn = sqlite3.connect("gpus.db")
+        self.curr = self.conn.cursor()
+
+    def is_img_urls_column_created(self):
+        query = "PRAGMA table_info(img_urls)"
+        self.curr.execute(query)
+
+        columns = self.curr.fetchall()
+
+        for col in columns:
+            if col[1] == "img_urls":
+                return True
+            else:
+                self.curr.execute("""alter table gpus_tb add imgs_url text""")
+                self.conn.commit()
+
+    def store_img_db(self, item):
+        self.curr.execute("""insert into gpus_tb (img_urls) values (?)""", (
+            item["img_url"]
+        ))
+        self.conn.commit()
+
+    def process_item(self, item, spider):
+        self.store_img_db(item)
+        return item

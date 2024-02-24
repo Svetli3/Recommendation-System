@@ -14,4 +14,7 @@ class GpuscraperItem(scrapy.Item):
     # memory_size = scrapy.Field()
     memory_speed = scrapy.Field()
     # memory_type = scrapy.Field()
-    #bus_width = scrapy.Field()
+    # bus_width = scrapy.Field()
+
+class GpuImgItem(scrapy.Item):
+    img_url = scrapy.Field()
