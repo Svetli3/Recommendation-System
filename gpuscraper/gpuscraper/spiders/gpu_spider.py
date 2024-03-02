@@ -70,9 +70,7 @@ class GpuSpider(scrapy.Spider):
     name = "gpus"
     manufacturers = ["3dfx", "AMD", "ATI", "Intel", "Matrox", "NVIDIA", "Sony", "XGI"]
     PCIe_values = ["PCIe 2.0 x16", "PCIe 3.0 x16", "PCIe 3.0 x8", "PCIe 4.0 x4", "PCIe 4.0 x8"]
-    contains_PCIe_values = True
-    manufacturer_index = 0
-    PCIe_value_index = 0
+
     #https://www.techpowerup.com/gpu-specs/?mfgr=AMD&mobile=No&workstation=No&sort=name
     #start_urls = ["https://www.techpowerup.com/gpu-specs/?mobile=No&workstation=No&sort=name"]
     #start_urls = ["https://www.techpowerup.com/gpu-specs/?mfgr=AMD&mobile=No&workstation=No&sort=name"]

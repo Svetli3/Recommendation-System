@@ -2,13 +2,14 @@
 #
 # See documentation in:
 # https://docs.scrapy.org/en/latest/topics/spider-middleware.html
+import queue
+import sqlite3
 
 from scrapy import signals
+from scrapy.signalmanager import dispatcher
 
 # useful for handling different item types with a single interface
 from itemadapter import is_item, ItemAdapter
-
-
 class GpuscraperSpiderMiddleware:
     # Not all methods need to be defined. If a method is not defined,
     # scrapy acts as if the spider middleware does not modify the
