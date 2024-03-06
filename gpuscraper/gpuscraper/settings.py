@@ -81,8 +81,11 @@ COOKIES_ENABLED = False
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
    "gpuscraper.pipelines.GpuscraperPipeline": 300,
-   "gpuscraper.pipelines.GpuImgScraperPipeline": 400
+   "gpuscraper.pipelines.GpuImgScraperPipeline": 400,
+   "scrapy.pipelines.images.ImagesPipeline": 1
 }
+
+IMAGES_STORE = 'images'
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html
