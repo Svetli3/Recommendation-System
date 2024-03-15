@@ -17,4 +17,10 @@ class GpuscraperItem(scrapy.Item):
     # bus_width = scrapy.Field()
 
 class GpuImgItem(scrapy.Item):
+    gpu_name = scrapy.Field()
+    memory_speed = scrapy.Field()
     img_url = scrapy.Field()
+
+class GpuPriceItem(scrapy.Item):
+    gpu_name = scrapy.Field()
+    price = scrapy.Field()
