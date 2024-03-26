@@ -138,15 +138,19 @@ class GpuSpider(scrapy.Spider):
             for gpus in cleaned_gpus_tbody:
                 manufacturer, gpu_name = get_manufacturer_and_gpu_name(gpus)
 
-                if manufacturer and gpu_name:
+                split_gpu_values = split_td_tags(gpus)
+                clock_speed = split_gpu_values[5]
+                memory = split_gpu_values[4]
+                memory_speed = split_gpu_values[6]
 
-                    split_gpu_values = split_td_tags(gpus)
-
+                if memory == "System Shared":
+                    continue
+                else:
                     items["brand"] = manufacturer
                     items["name"] = gpu_name
-                    items["clock_speed"] = split_gpu_values[5]
-                    items["memory"] = split_gpu_values[4]
-                    items["memory_speed"] = split_gpu_values[6]
+                    items["clock_speed"] = clock_speed
+                    items["memory"] = memory
+                    items["memory_speed"] = memory_speed
 
                     yield items
     def closed(self, reason):

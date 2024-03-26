@@ -24,7 +24,7 @@ service = webdriver.ChromeService(ChromeDriverManager().install())
 driver = webdriver.Chrome(service=service)
 
 class GpuImgScraper(scrapy.Spider):
-    name = "gpu_imgs"
+    name = "gpu_imgs_google"
     custom_settings = {
         'DOWNLOAD_DELAY': 3,
         'CONCURRENT_REQUESTS': 32,
@@ -97,7 +97,8 @@ class GpuImgScraper(scrapy.Spider):
             name_and_memory_speed_tuple = self.gpu_name_and_speed.get()
             image_urls = {"urls": [], "resolutions": []}
 
-            driver.get(f"https://www.google.com/search?q={search_query}&tbm=isch")
+            #driver.get(f"https://www.google.com/search?q={search_query}&tbm=isch")
+            driver.get(f"https://camelcamelcamel.com/search?sq=AMD+Radeon+HD+6230")
 
             WebDriverWait(driver, 3).until(
                 EC.presence_of_element_located((By.XPATH, "//div[@id='islrg']/div[@class='islrc']")))
