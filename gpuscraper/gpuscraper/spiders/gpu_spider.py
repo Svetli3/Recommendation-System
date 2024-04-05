@@ -14,8 +14,10 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException
 
-service = webdriver.ChromeService(ChromeDriverManager().install())
-driver = webdriver.Chrome(service=service)
+# !!!!!! UNCOMMENT PART BELOW TO RUN CODE !!!!!!
+#
+# service = webdriver.ChromeService(ChromeDriverManager().install())
+# driver = webdriver.Chrome(service=service)
 
 def get_all_PCIe_interface_values():
     element = driver.find_element(By.ID, "interface")

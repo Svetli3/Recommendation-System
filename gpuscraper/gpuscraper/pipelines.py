@@ -62,6 +62,7 @@ class GpuImgScraperPipeline:
     def __init__(self):
         self.create_connection()
         self.create_imgs_url_column()
+        #self.create_price_column()
     def create_connection(self):
         self.conn = sqlite3.connect("../gpus.db")
         self.curr = self.conn.cursor()
@@ -84,9 +85,31 @@ class GpuImgScraperPipeline:
         else:
             self.curr.execute("""alter table gpus_tb add imgs_url text""")
             self.conn.commit()
+
+    def create_price_column(self):
+        is_price_column_created = False
+
+        query = "PRAGMA table_info(gpus_tb)"
+        self.curr.execute(query)
+
+        columns = self.curr.fetchall()
+        print(columns)
+        for col in columns:
+            if col[1] == "price":
+                is_price_column_created = True
+            else:
+                is_price_column_created = False
+
+        if is_price_column_created:
+            print("price column already created")
+        else:
+            self.curr.execute("""alter table gpus_tb add price text""")
+            self.conn.commit()
     def store_img_db(self, item):
-        self.curr.execute("""update gpus_tb set imgs_url = (?) where name = (?) and memory_speed = (?)""",
-                          (item["img_url"], item["gpu_name"], item["memory_speed"]))
+        self.curr.execute("""update gpus_tb set imgs_url = (?) where name = (?)""",
+                          (item["img_url"], item["gpu_name"]))
+        self.curr.execute("""update gpus_tb set price = (?) where name = (?) """,
+                          (item["price"], item["gpu_name"]))
         self.conn.commit()
 
     def process_item(self, item, spider):

@@ -6,6 +6,7 @@
 #     https://docs.scrapy.org/en/latest/topics/settings.html
 #     https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
+import scrapy_proxy_pool.middlewares
 
 BOT_NAME = "gpuscraper"
 
@@ -51,11 +52,31 @@ COOKIES_ENABLED = False
 
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
-# DOWNLOADER_MIDDLEWARES = {
-#    "gpuscraper.middlewares.GpuscraperDownloaderMiddleware": 543,
-#     'rotating_proxies.middlewares.RotatingProxyMiddleware': 610,
-#     'rotating_proxies.middlewares.BanDetectionMiddleware': 620,
-# }
+#PROXY_POOL_ENABLED = True
+
+PROXY_LIST = 'proxy_list.txt'
+
+# Proxy mode
+# 0 = Every request have different proxy
+# 1 = Take only one proxy from the list and assign it to every requests
+# 2 = Put a custom proxy to use in the settings
+PROXY_MODE = 0
+
+DOWNLOADER_MIDDLEWARES = {
+
+    # "gpuscraper.middlewares.GpuscraperDownloaderMiddleware": 543,
+    # 'rotating_proxies.middlewares.RotatingProxyMiddleware': 610,
+    # 'rotating_proxies.middlewares.BanDetectionMiddleware': 620,
+    # scrapy_proxy_pool.middlewares.ProxyPoolMiddleware: 610,
+    # scrapy_proxy_pool.middlewares.BanDetectionMiddleware: 620
+    # 'rotating_proxies.middlewares.RotatingProxyMiddleware': 610,
+    # 'rotating_proxies.middlewares.BanDetectionMiddleware': 620,
+    'scrapy.downloadermiddlewares.useragent.UserAgentMiddleware': None,
+    'scrapy_user_agents.middlewares.RandomUserAgentMiddleware': 400,
+    'scrapy.downloadermiddlewares.retry.RetryMiddleware': 90,
+    'scrapy_proxies.RandomProxy': 100,
+    'scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware': 110,
+}
 
 # ROTATING_PROXY_LIST = [
 #     "213.212.220.210:8080",
@@ -82,10 +103,10 @@ COOKIES_ENABLED = False
 ITEM_PIPELINES = {
    #"gpuscraper.pipelines.GpuscraperPipeline": 300,
    #"gpuscraper.pipelines.GpuImgScraperPipeline": 400,
-   "scrapy.pipelines.images.ImagesPipeline": 1
+   #"scrapy.pipelines.images.ImagesPipeline": 1
 }
 
-IMAGES_STORE = 'images'
+#IMAGES_STORE = 'images'
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html

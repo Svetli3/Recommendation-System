@@ -19,9 +19,10 @@ from selenium.webdriver.support.ui import Select
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, ElementClickInterceptedException
-
-service = webdriver.ChromeService(ChromeDriverManager().install())
-driver = webdriver.Chrome(service=service)
+# !!!!!! UNCOMMENT PART BELOW TO RUN CODE !!!!!!
+#
+# service = webdriver.ChromeService(ChromeDriverManager().install())
+# driver = webdriver.Chrome(service=service)
 
 class GpuImgScraper(scrapy.Spider):
     name = "gpu_imgs_google"
