@@ -11,7 +11,7 @@ from fuzzywuzzy import process
 class GpuImgScraper(scrapy.Spider):
     name = "gpu_imgs_amazon"
     custom_settings = {
-        # 'DOWNLOAD_DELAY': 3,
+        'DOWNLOAD_DELAY': 5,
         'ITEM_PIPELINES': {
             "gpuscraper.pipelines.GpuImgScraperPipeline": 400
         }
@@ -88,38 +88,16 @@ class GpuImgScraper(scrapy.Spider):
         # Now gpu_containers only contains non-sponsored containers
         gpu_containers = [container for container in gpu_containers if not self.is_sponsored(container)]
 
-        # gpu_containers_gpu_names = []
-        # gpu_containers_gpu_images = []
-        # gpu_containers_gpu_prices = []
-
         for container in gpu_containers:
             name = container.xpath(".//span[@class='a-size-medium a-color-base a-text-normal']/text()").get()
             image = container.xpath(".//img/@src").get()
             price = container.xpath(".//span[@class='a-price']/span[@class='a-offscreen']/text()").get()
 
-            # gpu_containers_gpu_names.append(name)
-            # gpu_containers_gpu_images.append(image)
-            # gpu_containers_gpu_prices.append(price)
-
             gpu_dict[name] = {"image": image, "price": price}
-
-        #print(gpu_containers_gpu_names)
-
-        # gpu_containers_gpu_names = response.xpath("//div[@data-component-type='s-search-result']//span[@class='a-size-medium a-color-base a-text-normal']/text()").getall()[:12]
-        # gpu_containers_gpu_names = response.xpath("//span[@class='a-size-medium a-color-base a-text-normal']/text()").getall()
-
-        #gpu_container_gpu_images = response.xpath("//div[@data-component-type='s-search-result']//img/@src").getall()[:12]
-
-        #gpu_container_gpu_prices = response.xpath("//div[@data-component-type='s-search-result']//span[@class='a-price']/span[@class='a-offscreen']/text()").getall()[:12]
-
-        # gpu_dict[gpu_containers_gpu_names] = {"image": gpu_container_gpu_images, "price": gpu_container_gpu_prices}
-
-        # for name, image, price in zip(gpu_containers_gpu_names, gpu_containers_gpu_images, gpu_containers_gpu_prices):
-        #     gpu_dict[name] = {"image": image, "price": price}
-
 
         best_match, score = process.extractOne(search_query, gpu_dict.keys())
         print(f"GPU Name in DB: {gpu_name}")
+        print(f"GPU Name in Container: {best_match}")
         print(f"Score: {score}")
 
         if score < 86:
@@ -132,16 +110,6 @@ class GpuImgScraper(scrapy.Spider):
             items["gpu_name"] = gpu_name
             items["img_url"] = best_match_container["image"]
             items["price"] = best_match_container["price"]
-
-        # best_match_container = gpu_dict.get(best_match)
-        #
-        # items["gpu_name"] = gpu_name
-        # items["img_url"] = best_match_container["image"]
-        # items["price"] = best_match_container["price"]
-
-        # items["gpu_name"] = gpu_name
-        # items["img_url"] = gpu_dict[gpu_containers_gpu_names]["image"]
-        # items["price"] = gpu_dict[gpu_containers_gpu_names]["price"]
 
         yield items
 
