@@ -16,8 +16,8 @@ from selenium.common.exceptions import NoSuchElementException
 
 # !!!!!! UNCOMMENT PART BELOW TO RUN CODE !!!!!!
 #
-# service = webdriver.ChromeService(ChromeDriverManager().install())
-# driver = webdriver.Chrome(service=service)
+service = webdriver.ChromeService(ChromeDriverManager().install())
+driver = webdriver.Chrome(service=service)
 
 def get_all_PCIe_interface_values():
     element = driver.find_element(By.ID, "interface")
@@ -79,80 +79,79 @@ def have_common_elements(array1, array2):
             return True
     return False
 class GpuSpider(scrapy.Spider):
+    # Name of the spider
     name = "gpus"
+
+    # Custom settings for the spider
     custom_settings = {
+        # Delay between requests to avoid overwhelming the server
         'DOWNLOAD_DELAY': 15,
+        # Specify the pipeline for processing scraped items
         'ITEM_PIPELINES': {
             "gpuscraper.pipelines.GpuscraperPipeline": 300
         }
     }
-    manufacturers = ["3dfx", "AMD", "ATI", "Intel", "Matrox", "NVIDIA", "Sony", "XGI"]
-    PCIe_values = ["PCIe 2.0 x16", "PCIe 3.0 x16", "PCIe 3.0 x8", "PCIe 4.0 x4", "PCIe 4.0 x8"]
+
+    # List of release dates to scrape data for
     release_dates = ["2024", "2023", "2022", "2021", "2020", "2019", "2018"]
 
-    #https://www.techpowerup.com/gpu-specs/?mfgr=AMD&mobile=No&workstation=No&sort=name
-    #start_urls = ["https://www.techpowerup.com/gpu-specs/?mobile=No&workstation=No&sort=name"]
-    #start_urls = ["https://www.techpowerup.com/gpu-specs/?mfgr=AMD&mobile=No&workstation=No&sort=name"]
-    #start_urls = ["https://www.techpowerup.com/gpu-specs/?mfgr=AMD&mobile=No&workstation=No&interface=PCIe%202.0%20x16&sort=name"]
-
-    #Code to scrape based off of release dates, no consideration of manufacturer
+    # Function to generate initial requests based on release dates
     def start_requests(self):
         for date in self.release_dates:
+            # Generate a request for each release date URL
             yield scrapy.Request(f"https://www.techpowerup.com/gpu-specs/?released={date}&mobile=No&workstation=No&sort=name",
                                  self.parse
                                  )
 
-    #Code to scrape based off of PCIe interface values, no consideration for release dates
-    # def start_requests(self):
-    #     for m in self.manufacturers:
-    #
-    #         driver.get(f"https://www.techpowerup.com/gpu-specs/?mfgr={m}&mobile=No&workstation=No&sort=name")
-    #         WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.XPATH, "//table[@class='processors']")))
-    #
-    #         webpage_PCIe_values = get_all_PCIe_interface_values()
-    #
-    #         if have_common_elements(self.PCIe_values, webpage_PCIe_values):
-    #             for pci in self.PCIe_values:
-    #                 request = scrapy.Request(
-    #                     f"https://www.techpowerup.com/gpu-specs/?mfgr={m}&mobile=No&workstation=No&interface={pci}&sort=name",
-    #                     callback=self.parse,
-    #                     cb_kwargs={"manufacturer": m}
-    #                 )
-    #
-    #                 yield request
-    #         else:
-    #             print(f"{m} does not contain PCIe bus interface values")
-    #             continue
-
+    # Function to parse the response from each request
     def parse(self, response):
+        # Create an instance to store scraped item data
         items = GpuscraperItem()
         driver.get(response.url)
+
+        # Wait for the table of processors to be present on the page
         WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.XPATH, "//table[@class='processors']")))
         print(response.url)
 
+        # Check if there is only one row (header) in the table
         if len(response.xpath("//table[@class='processors']/tr").getall()) == 1:
+            # Skip if no GPU data rows are found
             pass
 
         else:
+            # Extract all rows from the table
             gpus_tbody = response.xpath("//table[@class='processors']/tr").getall()
+            # Clean the extracted rows by removing unwanted tags
             cleaned_gpus_tbody = [remove_tr_tags(gpu_values) for gpu_values in gpus_tbody]
 
+            # Iterate through each cleaned row
             for gpus in cleaned_gpus_tbody:
+                # Extract manufacturer and GPU name
                 manufacturer, gpu_name = get_manufacturer_and_gpu_name(gpus)
 
+                # Split the row data into individual cell values
                 split_gpu_values = split_td_tags(gpus)
+                # Extract memory details from the cell value
+                memory_values = split_memory_string(split_gpu_values[4])
+                # Extract clock speed
                 clock_speed = split_gpu_values[5]
+                # Extract memory info
                 memory = split_gpu_values[4]
+                # Extract memory speed
                 memory_speed = split_gpu_values[6]
 
+                # Skip if the memory type is 'System Shared'
                 if memory == "System Shared":
                     continue
                 else:
+                    # Populate the item fields with scraped data
                     items["brand"] = manufacturer
                     items["name"] = gpu_name
                     items["clock_speed"] = clock_speed
-                    items["memory"] = memory
                     items["memory_speed"] = memory_speed
+                    items["memory_size"] = memory_values[0]
+                    items["memory_type"] = memory_values[1]
+                    items["bus_width"] = memory_values[2]
 
                     yield items
     def closed(self, reason):

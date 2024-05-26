@@ -18,43 +18,29 @@ class GpuscraperPipeline:
 
     def create_table(self):
         self.curr.execute("""DROP TABLE IF EXISTS gpus_tb""")
-        # self.curr.execute("""create table gpus_tb(
-        #                 brand text,
-        #                 name text,
-        #                 clock_speed text,
-        #                 memory_size text,
-        #                 memory_speed text,
-        #                 memory_type text,
-        #                 bus_width text
-        #                 )""")
         self.curr.execute("""create table gpus_tb(
-                                brand text,
-                                name text,
-                                clock_speed text,
-                                memory text,
-                                memory_speed text
-                                )""")
+                        brand text,
+                        name text,
+                        clock_speed text,
+                        memory_size text,
+                        memory_speed text,
+                        memory_type text,
+                        bus_width text
+                        )""")
 
     def process_item(self, item, spider):
         self.store_db(item)
         return item
 
     def store_db(self, item):
-        # self.curr.execute("""insert into gpus_tb values (?, ?, ?, ?, ?, ?, ?)""", (
-        #     item["brand"],
-        #     item["name"],
-        #     item["clock_speed"],
-        #     item["memory_size"],
-        #     item["memory_speed"],
-        #     item["memory_type"],
-        #     item["bus_width"]
-        # ))
-        self.curr.execute("""insert into gpus_tb values (?, ?, ?, ?, ?)""", (
+        self.curr.execute("""insert into gpus_tb values (?, ?, ?, ?, ?, ?, ?)""", (
             item["brand"],
             item["name"],
             item["clock_speed"],
-            item["memory"],
-            item["memory_speed"]
+            item["memory_size"],
+            item["memory_speed"],
+            item["memory_type"],
+            item["bus_width"]
         ))
         self.conn.commit()
 
@@ -62,7 +48,7 @@ class GpuImgScraperPipeline:
     def __init__(self):
         self.create_connection()
         self.create_imgs_url_column()
-        #self.create_price_column()
+        self.create_price_column()
     def create_connection(self):
         self.conn = sqlite3.connect("../gpus.db")
         self.curr = self.conn.cursor()
@@ -77,8 +63,11 @@ class GpuImgScraperPipeline:
         for col in columns:
             if col[1] == "imgs_url":
                 is_imgs_url_created = True
+                break
             else:
                 is_imgs_url_created = False
+
+            #print(is_imgs_url_created)
 
         if is_imgs_url_created:
             print("imgs_url column already created")
@@ -93,10 +82,11 @@ class GpuImgScraperPipeline:
         self.curr.execute(query)
 
         columns = self.curr.fetchall()
-        print(columns)
+        # print(columns)
         for col in columns:
             if col[1] == "price":
                 is_price_column_created = True
+                break
             else:
                 is_price_column_created = False
 
@@ -136,6 +126,7 @@ class GpuPriceScraperPipeline:
         for col in columns:
             if col[1] == "price":
                 is_price_column_created = True
+                break
             else:
                 is_price_column_created = False
 

@@ -11,10 +11,10 @@ class GpuscraperItem(scrapy.Item):
     name = scrapy.Field()
     clock_speed = scrapy.Field()
     memory = scrapy.Field()
-    # memory_size = scrapy.Field()
+    memory_size = scrapy.Field()
     memory_speed = scrapy.Field()
-    # memory_type = scrapy.Field()
-    # bus_width = scrapy.Field()
+    memory_type = scrapy.Field()
+    bus_width = scrapy.Field()
 
 class GpuImgItem(scrapy.Item):
     gpu_name = scrapy.Field()

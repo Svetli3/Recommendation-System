@@ -11,7 +11,8 @@ from fuzzywuzzy import process
 class GpuImgScraper(scrapy.Spider):
     name = "gpu_imgs_amazon"
     custom_settings = {
-        'DOWNLOAD_DELAY': 5,
+        'DOWNLOAD_DELAY': 15,
+        'CONCURRENT_REQUESTS': 32,
         'ITEM_PIPELINES': {
             "gpuscraper.pipelines.GpuImgScraperPipeline": 400
         }
@@ -122,4 +123,3 @@ class GpuImgScraper(scrapy.Spider):
 
 if __name__ == "__main__":
    pass
-
