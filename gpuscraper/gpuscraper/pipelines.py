@@ -9,15 +9,20 @@ from itemadapter import ItemAdapter
 class GpuscraperPipeline:
 
     def __init__(self):
+        # Initialise connection to the database and create the table
         self.create_connection()
         self.create_table()
 
     def create_connection(self):
+        # Connect to the SQLite database
         self.conn = sqlite3.connect("../gpus.db")
+        # Create a cursor object to interact with the database
         self.curr = self.conn.cursor()
 
     def create_table(self):
+        # Drop the table if it already exists
         self.curr.execute("""DROP TABLE IF EXISTS gpus_tb""")
+        # Create a new table for storing GPU data
         self.curr.execute("""create table gpus_tb(
                         brand text,
                         name text,
@@ -29,10 +34,12 @@ class GpuscraperPipeline:
                         )""")
 
     def process_item(self, item, spider):
+        # Process each item and store it in the database
         self.store_db(item)
         return item
 
     def store_db(self, item):
+        # Insert the item data into the database table
         self.curr.execute("""insert into gpus_tb values (?, ?, ?, ?, ?, ?, ?)""", (
             item["brand"],
             item["name"],
@@ -42,6 +49,7 @@ class GpuscraperPipeline:
             item["memory_type"],
             item["bus_width"]
         ))
+        # Commit the transaction to save changes
         self.conn.commit()
 
 class GpuImgScraperPipeline:
