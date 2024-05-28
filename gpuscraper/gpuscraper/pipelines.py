@@ -58,6 +58,7 @@ class GpuPriceImgScraperPipeline:
         self.create_connection()
         self.create_imgs_url_column()
         self.create_price_column()
+
     def create_connection(self):
         # Connect to the SQLite database
         self.conn = sqlite3.connect("../gpus.db")
