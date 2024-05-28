@@ -52,22 +52,28 @@ class GpuscraperPipeline:
         # Commit the transaction to save changes
         self.conn.commit()
 
-class GpuImgScraperPipeline:
+class GpuPriceImgScraperPipeline:
     def __init__(self):
+        # Initialise the database connection and ensure necessary columns exist
         self.create_connection()
         self.create_imgs_url_column()
         self.create_price_column()
     def create_connection(self):
+        # Connect to the SQLite database
         self.conn = sqlite3.connect("../gpus.db")
+        # Create a cursor object to interact with the database
         self.curr = self.conn.cursor()
 
     def create_imgs_url_column(self):
+        # Check if the imgs_url column already exists
         is_imgs_url_created = False
         query = "PRAGMA table_info(gpus_tb)"
         self.curr.execute(query)
 
+        # Fetch all columns of the table
         columns = self.curr.fetchall()
 
+        # Check if imgs_url column is present
         for col in columns:
             if col[1] == "imgs_url":
                 is_imgs_url_created = True
@@ -75,22 +81,24 @@ class GpuImgScraperPipeline:
             else:
                 is_imgs_url_created = False
 
-            #print(is_imgs_url_created)
-
+        # Create imgs_url column if it doesn't exist
         if is_imgs_url_created:
-            print("imgs_url column already created")
+            print("imgs_url column already exists")
         else:
             self.curr.execute("""alter table gpus_tb add imgs_url text""")
             self.conn.commit()
 
     def create_price_column(self):
+        # Check if the price column already exists
         is_price_column_created = False
 
         query = "PRAGMA table_info(gpus_tb)"
         self.curr.execute(query)
 
+        # Fetch all columns of the table
         columns = self.curr.fetchall()
-        # print(columns)
+
+        # Check if price column is present
         for col in columns:
             if col[1] == "price":
                 is_price_column_created = True
@@ -98,20 +106,25 @@ class GpuImgScraperPipeline:
             else:
                 is_price_column_created = False
 
+        # Create price column if it doesn't exist
         if is_price_column_created:
-            print("price column already created")
+            print("price column already exists")
         else:
             self.curr.execute("""alter table gpus_tb add price text""")
             self.conn.commit()
-    def store_img_db(self, item):
+    def store_price_img_db(self, item):
+        # Update the imgs_url column for the given GPU name
         self.curr.execute("""update gpus_tb set imgs_url = (?) where name = (?)""",
                           (item["img_url"], item["gpu_name"]))
+        # Update the price column for the given GPU name
         self.curr.execute("""update gpus_tb set price = (?) where name = (?) """,
                           (item["price"], item["gpu_name"]))
+        # Commit the transaction to save changes
         self.conn.commit()
 
     def process_item(self, item, spider):
-        self.store_img_db(item)
+        # Store the item data in the database
+        self.store_price_img_db(item)
         return item
 
 class GpuPriceScraperPipeline:
@@ -155,4 +168,4 @@ class GpuPriceScraperPipeline:
 
 
 if __name__ == '__main__':
-    i = GpuImgScraperPipeline()
+    i = GpuPriceImgScraperPipeline()

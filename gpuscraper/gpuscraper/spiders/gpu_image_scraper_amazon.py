@@ -14,7 +14,7 @@ class GpuImgScraper(scrapy.Spider):
         'DOWNLOAD_DELAY': 15,
         'CONCURRENT_REQUESTS': 32,
         'ITEM_PIPELINES': {
-            "gpuscraper.pipelines.GpuImgScraperPipeline": 400
+            "gpuscraper.pipelines.GpuPriceImgScraperPipeline": 400
         }
     }
 
@@ -67,51 +67,87 @@ class GpuImgScraper(scrapy.Spider):
         else:
             return False
 
+    def has_price_tag(self, gpu_container):
+        price_tag = gpu_container.xpath(".//span[@class='a-price']").get()
+
+        if price_tag is not None:
+            return True
+        else:
+            return False
+
     def start_requests(self):
+        # Loop until the queue of GPU names is empty
         while not self.gpu_names_q.empty():
+            # Get the next GPU search query from the queue
             search_query = self.gpu_names_q.get()
+            # Get the corresponding GPU name from the database
             gpu_name = self.gpu_names_from_db.get()
+            # Append the URL and related data to the urls list
             self.urls.append({"url": f"https://www.amazon.co.uk/s?k={search_query}",
                          "search_query": search_query,
                          "gpu_name": gpu_name})
 
+        # Yield a request for each URL with the necessary callback arguments
         for url in self.urls:
-            yield scrapy.Request(url["url"], self.parse, cb_kwargs={"search_query": url["search_query"],
-                                                              "gpu_name": url["gpu_name"]})
+            yield scrapy.Request(
+                url["url"],
+                self.parse,
+                cb_kwargs={
+                    "search_query": url["search_query"],
+                    "gpu_name": url["gpu_name"]
+                }
+            )
 
 
     def parse(self, response, search_query, gpu_name):
+        # Create an instance to store the scraped item data
         items = GpuImgItem()
+        # Dictionary to store GPU data
         gpu_dict = {}
 
+        # Select the first 12 GPU containers from the search results
         gpu_containers = response.xpath("//div[@data-component-type='s-search-result']//div[@class='a-section']")[:12]
 
-        # Now gpu_containers only contains non-sponsored containers
+        # Filter out sponsored containers
         gpu_containers = [container for container in gpu_containers if not self.is_sponsored(container)]
 
+        # Iterate through the filtered GPU containers
         for container in gpu_containers:
-            name = container.xpath(".//span[@class='a-size-medium a-color-base a-text-normal']/text()").get()
-            image = container.xpath(".//img/@src").get()
+            # Extract the price of the GPU
             price = container.xpath(".//span[@class='a-price']/span[@class='a-offscreen']/text()").get()
 
-            gpu_dict[name] = {"image": image, "price": price}
+            # Check if the container has a price tag
+            if self.has_price_tag(container):
+                # Extract the name and image URL of the GPU
+                name = container.xpath(".//span[@class='a-size-medium a-color-base a-text-normal']/text()").get()
+                image = container.xpath(".//img/@src").get()
 
+                # Add the GPU details to the dictionary
+                gpu_dict[name] = {"image": image, "price": price}
+            else:
+                # Skip the container if it doesn't have a price tag
+                continue
+
+        # Find the best matching GPU name from the search results
         best_match, score = process.extractOne(search_query, gpu_dict.keys())
         print(f"GPU Name in DB: {gpu_name}")
         print(f"GPU Name in Container: {best_match}")
         print(f"Score: {score}")
 
         if score < 86:
+            # If below threshold, use default values
             items["gpu_name"] = gpu_name
             items["img_url"] = "https://static.vecteezy.com/system/resources/previews/014/987/440/original/motherboard-gpu-icon-simple-computer-card-vector.jpg"
             items["price"] = "N/A"
         else:
+            # If above threshold, use the best match data
             best_match_container = gpu_dict.get(best_match)
 
             items["gpu_name"] = gpu_name
             items["img_url"] = best_match_container["image"]
             items["price"] = best_match_container["price"]
 
+        # Yield the item for further processing
         yield items
 
 
